@@ -1,6 +1,21 @@
 const fs = require('fs');
 const E = require('events');
 
+const read = filename => {
+    return new Promise((resolve, reject) => {
+        fs.readFile(filename, (err, out) => {
+            if(err) reject(err);
+            resolve(out);
+        });
+    });
+};
+
+const write = (filename, contents) => {
+    return new Promise((resolve, reject) => {
+        fs.writeFile(filename, contents, err => reject(err));
+    });
+};
+
 const actions = {
     1: 'Set',
     2: 'Get',
@@ -17,8 +32,8 @@ class Store {
             if(this.queue.length) this.cycle()
         }, 5);
     }
-    read(name = this.file) {
-        this.opened = this.parse(fs.readFileSync(this.file));
+    async read(name = this.file) {
+        this.opened = this.parse(await read(this.file));
         return this.opened;
     }
     /**
@@ -57,19 +72,19 @@ class Store {
         delete this.storage[key];
         this.queue.push({ action: 3, key });
     }
-    cycle() {
+    async cycle() {
         const { action, key, value } = this.queue.shift();
         switch(actions[action]) {
             case 'Set': {
-                try { fs.writeFileSync(this.file, JSON.stringify(this.storage)); }
+                try { await write(this.file, JSON.stringify(this.storage)); }
                 catch(e) { console.log(e); }
                 break;
             }
             case 'Get': {
-                this.listener.emit(key, this.read()[key]);
+                this.listener.emit(key, (await this.read())[key]);
             }
             case 'Delete': {
-                try { fs.writeFileSync(this.file, JSON.stringify(this.storage)); }
+                try { await write(this.file, JSON.stringify(this.storage)); }
                 catch(e) { console.log(e); }
                 break;
             }
